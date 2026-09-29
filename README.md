@@ -1,6 +1,6 @@
 # FuelServerPro
 
-TexnoUz BlueSky protokoli bo'yicha TRK yoqilg'i quyish kolonkalari bilan RS-485 orqali muloqot qiladigan .NET 10 API serveri. Server serial portni boshqaradi, 1..16 manzillardagi qurilmalarni qidiradi, holatini navbatma-navbat yangilaydi va HTTP orqali JSON javob qaytaradi.
+TexnoUz BlueSky protokoli bo'yicha TRK yoqilg'i quyish kolonkalari bilan RS-485 orqali muloqot qiladigan .NET 10 API serveri. Server serial portni boshqaradi, 1..255 manzillardagi qurilmalarni qidiradi, holatini navbatma-navbat yangilaydi va HTTP orqali JSON javob qaytaradi.
 
 > **Muhim xavfsizlik eslatmasi:** API’da autentifikatsiya yo'q. `/cmd/c3_start`, `/cmd/ca_stop`, doza o'rnatish va klapan boshqaruvi kabi yo'llar qurilmaga haqiqiy buyruq yuboradi. Serverni ochiq internetga yoki ishonchsiz tarmoqqa chiqarmang. `FUEL_SERVER_URL` ni `0.0.0.0` ga bog'lashdan oldin firewall, VPN yoki himoyalangan reverse proxy qo'llang.
 
@@ -27,7 +27,7 @@ TexnoUz BlueSky protokoli bo'yicha TRK yoqilg'i quyish kolonkalari bilan RS-485 
 - OpenAPI 3.1 hujjati va interaktiv Swagger UI.
 - 9600 baud, 8 data bit, Even parity, 1 stop bit (9600 8E1) RS-485 serial aloqasi.
 - `0xF5` kadr, 7-bit XOR CRC va big-endian BCD qiymatlarini tekshirish.
-- 1..16 manzillarni qidirish va topilgan qurilmalarni fon rejimida navbatma-navbat so'roq qilish.
+- 1..255 manzillarni qidirish va topilgan qurilmalarni fon rejimida navbatma-navbat so'roq qilish.
 - Har bir qurilma uchun joriy holat, hajm, summa va narxni saqlash.
 - Status, hajm/summa, narx, doza, nasos, hisoblagich, karta/ID, xato va solenoid buyruqlari.
 - Kunlik log fayllari.
@@ -37,7 +37,7 @@ TexnoUz BlueSky protokoli bo'yicha TRK yoqilg'i quyish kolonkalari bilan RS-485 
 - Windows kompyuter va .NET 10 SDK.
 - RS-485 adapter/konvertor hamda kolonkaning A/B liniyalariga to'g'ri ulangan kabel.
 - Windows’da mavjud va boshqa dastur egallamagan COM port.
-- Protokol bo'yicha sozlangan TRK qurilma manzili: `1..16`.
+- Protokol bo'yicha sozlangan TRK qurilma manzili: `1..255` (`0` yaroqsiz).
 - Swagger UI’dagi CSS/JavaScript CDN’dan yuklanadi, shu sababli Swagger sahifasi to'liq ishlashi uchun brauzerda internet bo'lishi kerak. OpenAPI JSON endpointi lokal serverdan beriladi.
 
 ## O'rnatish va ishga tushirish
@@ -113,7 +113,7 @@ Barcha serial o'qish/yozish amallari `MultiTrkManager` ichidagi bitta lock bilan
 
 1. Server ishga tushganda Kestrel `8088` portni tinglaydi; serial port hali ochilmagan bo'ladi.
 2. `/connect?port=COM6` chaqirilganda port ochiladi.
-3. Ulanishdan so'ng fon vazifasi `1..16` manzillarni `0xD5` status buyrug'i bilan qidiradi.
+3. Ulanishdan so'ng fon vazifasi `1..255` manzillarni `0xD5` status buyrug'i bilan qidiradi. Javob bermaydigan barcha manzillarni kutib o'tish sababli to'liq scan taxminan 69 soniyagacha davom etishi mumkin.
 4. Topilgan qurilmalar `Devices` kolleksiyasiga qo'shiladi. Polling vazifasi ularning holatini navbatma-navbat yangilaydi.
 5. Qurilma javob bermasa `isConnected` false bo'ladi. Hajm/summa qiymatlari polling paytida holatga qarab yangilanadi.
 6. `/disconnect` portni yopadi, fon pollingni bekor qiladi va qurilmalar holatini tozalaydi.
@@ -131,11 +131,11 @@ Barcha biznes endpointlari `GET` va `POST` metodlarini qabul qiladi; qiymatlar U
 | `/` | — | Swagger UI’ga yo'naltiradi |
 | `/connect` | `port` ixtiyoriy, standart `COM6` | Serial portni ochadi va avtomatik qidiruv/pollingni boshlaydi |
 | `/disconnect` | — | Polling va serial portni to'xtatadi, device state’ni tozalaydi |
-| `/scan` | — | `1..16` manzillarni qayta qidiradi |
+| `/scan` | — | `1..255` manzillarni qayta qidiradi |
 | `/status` | `addr` | Bitta qurilma statusini yangilab qaytaradi |
 | `/status_all` | — | Topilgan barcha qurilmalar uchun keshlangan statusni qaytaradi |
 
-`addr` qurilma manzili bo'lib, `1` dan `16` gacha bo'lishi kerak. `/cmd/a1_select_nozzle` dagi `nozzle` ham shu manzil oralig'ida bo'lishi kerak.
+`addr` qurilma manzili bo'lib, `1` dan `255` gacha bo'lishi kerak. `/cmd/a1_select_nozzle` dagi `nozzle` ham shu manzil oralig'ida bo'lishi kerak.
 
 ### Qurilmaga buyruq endpointlari
 
@@ -257,7 +257,7 @@ F5 | ADDR | LEN | DATA... | CMD | CRC
 ```
 
 - `F5` — kadr boshlanish bayti.
-- `ADDR` — qurilma manzili (`1..16`).
+- `ADDR` — qurilma manzili (`1..255`; `0` yaroqsiz).
 - `LEN` — yuqori nibble `0xA`; pastki nibble `DATA + CMD + CRC` baytlar soni.
 - `DATA` — buyruqqa tegishli ma'lumot; so'rovda bo'sh bo'lishi mumkin.
 - `CMD` — buyruq kodi.
@@ -294,7 +294,7 @@ Muvaffaqiyatli javoblar `application/json` formatida va odatda HTTP `200` bilan 
 ```
 
 ```json
-{"success":false,"error":"addr must be a device address from 1 to 16."}
+{"success":false,"error":"addr must be a device address from 1 to 255."}
 ```
 
 | HTTP kodi | Qachon qaytadi |
@@ -343,7 +343,7 @@ Har bir yozuvda sana, vaqt va hodisa/xato matni bo'ladi. Faylga yozish muvaffaqi
 
 - `/connect` muvaffaqiyatli bo'lganini va adapter RX/TX liniyalari to'g'ri ulanganini tekshiring.
 - 9600 8E1, umumiy signal reference va RS-485 A/B qutblanishini tekshiring.
-- TRK qurilmasi manzili `1..16` oralig'ida va aynan bir marta sozlangan bo'lishi kerak.
+- TRK qurilmasi manzili `1..255` oralig'ida va aynan bir marta sozlangan bo'lishi kerak.
 - RS-485 magistralda bir nechta qurilma javoblari bir-biriga to'qnashmayotganini tekshiring.
 
 ### Buyruq timeout yoki noto'g'ri response beradi

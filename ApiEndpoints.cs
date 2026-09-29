@@ -44,7 +44,7 @@ namespace FuelServerPro
                 }
 
                 return Success(new { success = true, found = manager.ScanDevices() });
-            }), "ScanDevices", "Scan addresses 1 through 16.", "Queries each configured dispenser address on the connected bus.");
+            }), "ScanDevices", "Scan addresses 1 through 255.", "Queries each configured dispenser address on the connected bus.");
 
             Describe(app.MapMethods("/status_all", SupportedMethods, (MultiTrkManager manager) =>
             {
@@ -56,7 +56,7 @@ namespace FuelServerPro
             {
                 if (!TryGetAddress(addr, out byte address))
                 {
-                    return Failure("addr must be a device address from 1 to 16.", StatusCodes.Status400BadRequest);
+                    return Failure("addr must be a device address from 1 to 255.", StatusCodes.Status400BadRequest);
                 }
 
                 if (!manager.Devices.TryGetValue(address, out TrkDevice? device) || !manager.RefreshDeviceStatus(address))
@@ -156,7 +156,7 @@ namespace FuelServerPro
             Describe(app.MapMethods("/cmd/a1_select_nozzle", SupportedMethods, ([FromQuery(Name = "addr")] int? addr, [FromQuery(Name = "nozzle")] int? nozzle, MultiTrkManager manager) =>
             {
                 if (!TryGetAddress(addr, out byte address)) return InvalidAddress();
-                if (!TryGetAddress(nozzle, out byte nozzleAddress)) return Failure("nozzle must be an address from 1 to 16.", StatusCodes.Status400BadRequest);
+                if (!TryGetAddress(nozzle, out byte nozzleAddress)) return Failure("nozzle must be an address from 1 to 255.", StatusCodes.Status400BadRequest);
                 return ExecuteWrite(() => manager.SelectNozzle(address, nozzleAddress), "Nozzle selection was rejected or timed out.", new { success = true, nozzle = nozzleAddress }, StatusCodes.Status409Conflict);
             }), "SelectNozzle", "Select a nozzle (0xA1).", "Sends the selected hose address as the one-byte request payload.");
 
@@ -254,7 +254,7 @@ namespace FuelServerPro
 
         private static bool TryGetAddress(int? value, out byte address)
         {
-            if (value is >= 1 and <= 16)
+            if (value is >= 1 and <= byte.MaxValue)
             {
                 address = (byte)value.Value;
                 return true;
@@ -266,7 +266,7 @@ namespace FuelServerPro
 
         private static IResult InvalidAddress()
         {
-            return Failure("addr must be a device address from 1 to 16.", StatusCodes.Status400BadRequest);
+            return Failure("addr must be a device address from 1 to 255.", StatusCodes.Status400BadRequest);
         }
 
         private static IResult ExecuteWrite(Func<bool> operation, string failureMessage, object successBody, int failureStatus = StatusCodes.Status504GatewayTimeout)

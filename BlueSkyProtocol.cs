@@ -167,9 +167,9 @@ namespace FuelServerPro
         {
             data ??= Array.Empty<byte>();
 
-            if (address is < 1 or > 16)
+            if (address == 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(address), "Device address must be between 1 and 16.");
+                throw new ArgumentOutOfRangeException(nameof(address), "Device address must be between 1 and 255.");
             }
 
             int payloadLength = data.Length + 2;

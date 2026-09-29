@@ -15,7 +15,7 @@ This repository is a small .NET console service that exposes a local HTTP API fo
 
 - Target framework is `net10.0` and the app is a console executable.
 - Serial settings are intentionally fixed: `9600`, `Parity.Even`, `8` data bits, `StopBits.One`, with `DtrEnable` and `RtsEnable` enabled.
-- Device addresses are `byte` values in the range `1..16`.
+- Device addresses are `byte` values in the range `1..255`; address `0` is reserved/invalid.
 - All protocol packets should go through `BlueSkyProtocol` helpers instead of hand-built byte arrays.
 - Keep protocol logic conservative: validate framing, CRC, and response length before trusting a serial reply.
 - Sequential serial access is protected by `_portLock` in `MultiTrkManager`; avoid introducing parallel port operations that would race with reads/writes.
@@ -33,7 +33,7 @@ This repository is a small .NET console service that exposes a local HTTP API fo
 - `/cmd/c3_start?addr=1`
 - `/cmd/ca_stop?addr=1`
 
-The HTTP API also exposes these documented protocol commands (all command routes require `addr=1..16`):
+The HTTP API also exposes these documented protocol commands (all command routes require `addr=1..255`):
 
 - `/cmd/d5_status`, `/cmd/d9_read_volume`
 - `/cmd/b6_read_price`, `/cmd/b2_set_price?price=...`

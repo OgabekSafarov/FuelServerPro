@@ -104,8 +104,9 @@ namespace FuelServerPro
         {
             var found = new List<byte>();
 
-            for (byte address = 1; address <= 16; address++)
+            for (int addressValue = 1; addressValue <= byte.MaxValue; addressValue++)
             {
+                byte address = (byte)addressValue;
                 byte[]? response = ExecRawCmd(address, 0xD5, timeoutMs: 250);
                 if (BlueSkyProtocol.IsStatusFrame(response))
                 {
