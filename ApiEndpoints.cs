@@ -153,6 +153,18 @@ namespace FuelServerPro
                 return ExecuteWrite(() => manager.ClearShiftCounters(address), "Counter clear was not acknowledged.", new { success = true });
             }), "ClearShiftCounters", "Clear shift counters (0xEA).", "Clears the shift counters on the selected dispenser.");
 
+            Describe(app.MapMethods("/cmd/e5_request_control", SupportedMethods, ([FromQuery(Name = "addr")] int? addr, MultiTrkManager manager) =>
+            {
+                if (!TryGetAddress(addr, out byte address)) return InvalidAddress();
+                return ExecuteWrite(() => manager.RequestControl(address), "Control request was not acknowledged.", new { success = true });
+            }), "RequestControl", "Request control of the dispenser (0xE5).", "Sends the control request; the device answers with a general acknowledgment.");
+
+            Describe(app.MapMethods("/cmd/e7_return_control", SupportedMethods, ([FromQuery(Name = "addr")] int? addr, MultiTrkManager manager) =>
+            {
+                if (!TryGetAddress(addr, out byte address)) return InvalidAddress();
+                return ExecuteWrite(() => manager.ReturnControl(address), "Control return was not acknowledged.", new { success = true });
+            }), "ReturnControl", "Return control of the dispenser (0xE7).", "Sends the control return; the device answers with a general acknowledgment.");
+
             Describe(app.MapMethods("/cmd/a1_select_nozzle", SupportedMethods, ([FromQuery(Name = "addr")] int? addr, [FromQuery(Name = "nozzle")] int? nozzle, MultiTrkManager manager) =>
             {
                 if (!TryGetAddress(addr, out byte address)) return InvalidAddress();

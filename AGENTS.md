@@ -40,6 +40,7 @@ The HTTP API also exposes these documented protocol commands (all command routes
 - `/cmd/b5_set_preset_amount?amount=...`, `/cmd/b9_set_preset_volume?liters=...`
 - `/cmd/c3_start`, `/cmd/ca_stop`, `/cmd/ba_pause`, `/cmd/b3_resume`
 - `/cmd/c5_read_total_counters`, `/cmd/c7_read_shift_counters`, `/cmd/ea_clear_shift_counters`
+- `/cmd/e5_request_control`, `/cmd/e7_return_control`
 - `/cmd/a1_select_nozzle?nozzle=...`, `/cmd/a7_read_preset`, `/cmd/a8_read_card_id`
 - `/cmd/a9_read_error`, `/cmd/ab_clear_error`, `/cmd/d7_read_device_id`, `/cmd/aa_clear_preset_flag`
 - `/cmd/d6_read_solenoid`, `/cmd/d2_set_solenoid?state=...`

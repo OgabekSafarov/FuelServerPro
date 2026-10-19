@@ -11,6 +11,8 @@ namespace FuelServerPro
 {
     public class MultiTrkManager
     {
+        private const int ScanKeepAliveIntervalMs = 1500;
+
         private readonly object _portLock = new();
         private SerialPort? _serialPort;
         private CancellationTokenSource? _cts;
@@ -103,6 +105,7 @@ namespace FuelServerPro
         public List<byte> ScanDevices()
         {
             var found = new List<byte>();
+            var sinceKeepAlive = Stopwatch.StartNew();
 
             for (int addressValue = 1; addressValue <= byte.MaxValue; addressValue++)
             {
@@ -118,6 +121,18 @@ namespace FuelServerPro
                 }
 
                 Thread.Sleep(20);
+
+                // The device drops the PC link after 5 s without requests addressed to it,
+                // and a full scan takes ~69 s. Keep already-found devices alive meanwhile.
+                if (found.Count > 0 && sinceKeepAlive.ElapsedMilliseconds >= ScanKeepAliveIntervalMs)
+                {
+                    foreach (byte foundAddress in found)
+                    {
+                        RefreshDeviceStatus(foundAddress);
+                    }
+
+                    sinceKeepAlive.Restart();
+                }
             }
 
             return found;
@@ -252,6 +267,16 @@ namespace FuelServerPro
         public bool ClearShiftCounters(byte address)
         {
             return ExecuteAcknowledgedCommand(address, 0xEA);
+        }
+
+        public bool RequestControl(byte address)
+        {
+            return ExecuteAcknowledgedCommand(address, 0xE5);
+        }
+
+        public bool ReturnControl(byte address)
+        {
+            return ExecuteAcknowledgedCommand(address, 0xE7);
         }
 
         public bool SelectNozzle(byte address, byte nozzleAddress)
