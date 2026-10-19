@@ -24,10 +24,10 @@ This repository is a small .NET console service that exposes a local HTTP API fo
 
 `Program.cs` exposes request endpoints such as:
 
-- `/connect?port=COM6`
-- `/scan`
+- `/connect?port=COM6&maxAddr=8` (`port` defaults to `FUEL_COM_PORT` or `COM6`; `maxAddr` 1..255 defaults to `FUEL_MAX_ADDR` or 255 and limits the background scan)
+- `/scan?maxAddr=8`
 - `/status`
-- `/status_all`
+- `/status_all` (returns `success`, `portOpen`, `port`, `scanning`, `devices`)
 - `/cmd/b9_set_preset_volume?addr=1&liters=...`
 - `/cmd/b5_set_preset_amount?addr=1&amount=...`
 - `/cmd/c3_start?addr=1`

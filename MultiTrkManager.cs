@@ -17,12 +17,14 @@ namespace FuelServerPro
         private SerialPort? _serialPort;
         private CancellationTokenSource? _cts;
         private volatile bool _isRunning;
+        private volatile bool _isScanning;
 
         public ConcurrentDictionary<byte, TrkDevice> Devices { get; } = new();
         public bool IsPortOpen => _serialPort?.IsOpen == true;
         public string? ConnectedPortName => _serialPort?.IsOpen == true ? _serialPort.PortName : null;
+        public bool IsScanning => _isScanning;
 
-        public bool ConnectPort(string portName)
+        public bool ConnectPort(string portName, int maxAddress = byte.MaxValue)
         {
             if (string.IsNullOrWhiteSpace(portName))
             {
@@ -56,7 +58,7 @@ namespace FuelServerPro
                 {
                     try
                     {
-                        ScanDevices();
+                        ScanDevices(maxAddress);
                         await PollingLoop(cancellation.Token);
                     }
                     catch (OperationCanceledException)
@@ -102,37 +104,46 @@ namespace FuelServerPro
             Devices.Clear();
         }
 
-        public List<byte> ScanDevices()
+        public List<byte> ScanDevices(int maxAddress = byte.MaxValue)
         {
             var found = new List<byte>();
             var sinceKeepAlive = Stopwatch.StartNew();
+            int lastAddress = Math.Clamp(maxAddress, 1, byte.MaxValue);
 
-            for (int addressValue = 1; addressValue <= byte.MaxValue; addressValue++)
+            _isScanning = true;
+            try
             {
-                byte address = (byte)addressValue;
-                byte[]? response = ExecRawCmd(address, 0xD5, timeoutMs: 250);
-                if (BlueSkyProtocol.IsStatusFrame(response))
+                for (int addressValue = 1; addressValue <= lastAddress; addressValue++)
                 {
-                    var device = Devices.GetOrAdd(address, a => new TrkDevice(a));
-                    device.CurrentStateByte = response![3];
-                    device.IsConnected = true;
-                    found.Add(address);
-                    Logger.Log($"Topildi: TRK Manzil {address}");
-                }
-
-                Thread.Sleep(20);
-
-                // The device drops the PC link after 5 s without requests addressed to it,
-                // and a full scan takes ~69 s. Keep already-found devices alive meanwhile.
-                if (found.Count > 0 && sinceKeepAlive.ElapsedMilliseconds >= ScanKeepAliveIntervalMs)
-                {
-                    foreach (byte foundAddress in found)
+                    byte address = (byte)addressValue;
+                    byte[]? response = ExecRawCmd(address, 0xD5, timeoutMs: 250);
+                    if (BlueSkyProtocol.IsStatusFrame(response))
                     {
-                        RefreshDeviceStatus(foundAddress);
+                        var device = Devices.GetOrAdd(address, a => new TrkDevice(a));
+                        device.CurrentStateByte = response![3];
+                        device.IsConnected = true;
+                        found.Add(address);
+                        Logger.Log($"Topildi: TRK Manzil {address}");
                     }
 
-                    sinceKeepAlive.Restart();
+                    Thread.Sleep(20);
+
+                    // The device drops the PC link after 5 s without requests addressed to it,
+                    // and a full scan takes ~69 s. Keep already-found devices alive meanwhile.
+                    if (found.Count > 0 && sinceKeepAlive.ElapsedMilliseconds >= ScanKeepAliveIntervalMs)
+                    {
+                        foreach (byte foundAddress in found)
+                        {
+                            RefreshDeviceStatus(foundAddress);
+                        }
+
+                        sinceKeepAlive.Restart();
+                    }
                 }
+            }
+            finally
+            {
+                _isScanning = false;
             }
 
             return found;
