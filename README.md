@@ -113,7 +113,7 @@ Barcha serial o'qish/yozish amallari `MultiTrkManager` ichidagi bitta lock bilan
 
 1. Server ishga tushganda Kestrel `8088` portni tinglaydi; serial port hali ochilmagan bo'ladi.
 2. `/connect?port=COM6` chaqirilganda port ochiladi.
-3. Ulanishdan so'ng fon vazifasi `1..255` manzillarni `0xD5` status buyrug'i bilan qidiradi. Javob bermaydigan barcha manzillarni kutib o'tish sababli to'liq scan taxminan 69 soniyagacha davom etishi mumkin.
+3. Ulanishdan so'ng fon vazifasi `1..255` manzillarni `0xD5` status buyrug'i bilan qidiradi. Javob bermaydigan barcha manzillarni kutib o'tish sababli to'liq scan taxminan 69 soniyagacha davom etishi mumkin. Qurilma 5 soniya so'rov olmasa aloqani yo'qotgani uchun, scan paytida topilgan qurilmalarga har ~1.5 soniyada status so'rovi yuboriladi.
 4. Topilgan qurilmalar `Devices` kolleksiyasiga qo'shiladi. Polling vazifasi ularning holatini navbatma-navbat yangilaydi.
 5. Qurilma javob bermasa `isConnected` false bo'ladi. Hajm/summa qiymatlari polling paytida holatga qarab yangilanadi.
 6. `/disconnect` portni yopadi, fon pollingni bekor qiladi va qurilmalar holatini tozalaydi.
@@ -156,6 +156,8 @@ Quyidagi buyruq endpointlarining barchasi `addr` parametrini talab qiladi.
 | `/cmd/c5_read_total_counters` | — | `0xC5` | Umumiy hisoblagich: 6 bayt hajm + 6 bayt summa |
 | `/cmd/c7_read_shift_counters` | — | `0xC7` | Smena hisoblagichi: 6 bayt hajm + 6 bayt summa |
 | `/cmd/ea_clear_shift_counters` | — | `0xEA` | Smena hisoblagichini tozalaydi |
+| `/cmd/e5_request_control` | — | `0xE5` | Boshqaruvni so'raydi; umumiy ACK qaytadi |
+| `/cmd/e7_return_control` | — | `0xE7` | Boshqaruvni qaytaradi; umumiy ACK qaytadi |
 | `/cmd/a1_select_nozzle` | `nozzle` | `0xA1` | Rukav manzilini tanlaydi; status ACK talab qiladi |
 | `/cmd/a7_read_preset` | — | `0xA7` | Prednabor turi va qiymatini o'qiydi |
 | `/cmd/a8_read_card_id` | — | `0xA8` | 4 baytli karta ID’sini o'qiydi |
