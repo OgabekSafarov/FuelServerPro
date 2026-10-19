@@ -22,13 +22,14 @@ namespace FuelServerPro
             app.MapGet("/swagger/index.html", () => Results.Content(SwaggerUiHtml, "text/html; charset=utf-8"))
                 .ExcludeFromDescription();
 
-            Describe(app.MapMethods("/connect", SupportedMethods, ([FromQuery(Name = "port")] string? port, MultiTrkManager manager) =>
+            Describe(app.MapMethods("/connect", SupportedMethods, ([FromQuery(Name = "port")] string? port, [FromQuery(Name = "maxAddr")] int? maxAddr, MultiTrkManager manager) =>
             {
-                string portName = string.IsNullOrWhiteSpace(port) ? "COM6" : port;
-                return manager.ConnectPort(portName)
+                if (maxAddr is < 1 or > byte.MaxValue) return Failure("maxAddr must be from 1 to 255.", StatusCodes.Status400BadRequest);
+                string portName = string.IsNullOrWhiteSpace(port) ? DefaultPortName() : port;
+                return manager.ConnectPort(portName, maxAddr ?? DefaultMaxAddress())
                     ? Success(new { success = true, port = portName })
                     : Failure("Could not open the serial port.", StatusCodes.Status503ServiceUnavailable);
-            }), "Connect", "Connect to the dispenser serial port.", "Opens the requested RS-485 port, defaulting to COM6.");
+            }), "Connect", "Connect to the dispenser serial port.", "Opens the requested RS-485 port (default: FUEL_COM_PORT or COM6). Optional maxAddr (1..255, default: FUEL_MAX_ADDR or 255) limits the background address scan to 1..maxAddr.");
 
             Describe(app.MapMethods("/disconnect", SupportedMethods, (MultiTrkManager manager) =>
             {
@@ -36,20 +37,21 @@ namespace FuelServerPro
                 return Success(new { success = true });
             }), "Disconnect", "Disconnect the serial port.", "Stops polling, closes the serial port, and clears device state.");
 
-            Describe(app.MapMethods("/scan", SupportedMethods, (MultiTrkManager manager) =>
+            Describe(app.MapMethods("/scan", SupportedMethods, ([FromQuery(Name = "maxAddr")] int? maxAddr, MultiTrkManager manager) =>
             {
+                if (maxAddr is < 1 or > byte.MaxValue) return Failure("maxAddr must be from 1 to 255.", StatusCodes.Status400BadRequest);
                 if (!manager.IsPortOpen)
                 {
                     return Failure("Serial port is not connected.", StatusCodes.Status503ServiceUnavailable);
                 }
 
-                return Success(new { success = true, found = manager.ScanDevices() });
-            }), "ScanDevices", "Scan addresses 1 through 255.", "Queries each configured dispenser address on the connected bus.");
+                return Success(new { success = true, found = manager.ScanDevices(maxAddr ?? byte.MaxValue) });
+            }), "ScanDevices", "Scan addresses 1 through maxAddr (default 255).", "Queries each configured dispenser address on the connected bus.");
 
             Describe(app.MapMethods("/status_all", SupportedMethods, (MultiTrkManager manager) =>
             {
                 var devices = manager.Devices.Values.OrderBy(device => device.Address).Select(ToStatusResponse).ToList();
-                return Success(new { success = true, devices });
+                return Success(new { success = true, portOpen = manager.IsPortOpen, port = manager.ConnectedPortName, scanning = manager.IsScanning, devices });
             }), "GetAllStatus", "Get cached status for all discovered dispensers.", "Returns each device state and the latest volume and amount values.");
 
             Describe(app.MapMethods("/status", SupportedMethods, ([FromQuery(Name = "addr")] int? addr, MultiTrkManager manager) =>
@@ -262,6 +264,20 @@ namespace FuelServerPro
                 currentAmount = device.CurrentAmount / 100.0,
                 price = device.CurrentPrice
             };
+        }
+
+        // Machine-specific defaults, so clients (e.g. the 1C cashier screen) need not know the COM port.
+        private static string DefaultPortName()
+        {
+            string? fromEnvironment = Environment.GetEnvironmentVariable("FUEL_COM_PORT");
+            return string.IsNullOrWhiteSpace(fromEnvironment) ? "COM6" : fromEnvironment.Trim();
+        }
+
+        private static int DefaultMaxAddress()
+        {
+            return int.TryParse(Environment.GetEnvironmentVariable("FUEL_MAX_ADDR"), out int value) && value is >= 1 and <= byte.MaxValue
+                ? value
+                : byte.MaxValue;
         }
 
         private static bool TryGetAddress(int? value, out byte address)

@@ -82,7 +82,15 @@ Remove-Item Env:FUEL_SERVER_URL
 
 ### COM portni tanlash
 
-Ulanishda `port` berilmasa, `COM6` ishlatiladi. Qurilmangiz Device Manager’da, masalan, `COM4` bo'lib ko'rinsa, so'rovda `port=COM4` yuboring.
+Ulanishda `port` berilmasa, `FUEL_COM_PORT` muhit o'zgaruvchisi, u ham bo'lmasa `COM6` ishlatiladi. Qurilmangiz Device Manager’da, masalan, `COM4` bo'lib ko'rinsa, so'rovda `port=COM4` yuboring yoki serverni `FUEL_COM_PORT=COM4` bilan ishga tushiring:
+
+```powershell
+$env:FUEL_COM_PORT = "COM4"
+$env:FUEL_MAX_ADDR = "8"
+dotnet run
+```
+
+`FUEL_MAX_ADDR` (`1..255`, standart `255`) avtomatik qidiruv oralig'ini `1..FUEL_MAX_ADDR` ga qisqartiradi: to'liq scan ~69 soniya, `FUEL_MAX_ADDR=8` bo'lsa ~2 soniya. `/connect` va `/scan` dagi `maxAddr` parametri shu qiymatni bitta so'rov uchun almashtiradi. Bo'sh `FUEL_COM_PORT` yoki oraliqdan tashqari/noto'g'ri `FUEL_MAX_ADDR` e'tiborsiz qoldirilib, standart qiymat ishlatiladi.
 
 ## Swagger va OpenAPI
 
@@ -112,13 +120,13 @@ Barcha serial o'qish/yozish amallari `MultiTrkManager` ichidagi bitta lock bilan
 ## Ishlash tartibi
 
 1. Server ishga tushganda Kestrel `8088` portni tinglaydi; serial port hali ochilmagan bo'ladi.
-2. `/connect?port=COM6` chaqirilganda port ochiladi.
-3. Ulanishdan so'ng fon vazifasi `1..255` manzillarni `0xD5` status buyrug'i bilan qidiradi. Javob bermaydigan barcha manzillarni kutib o'tish sababli to'liq scan taxminan 69 soniyagacha davom etishi mumkin. Qurilma 5 soniya so'rov olmasa aloqani yo'qotgani uchun, scan paytida topilgan qurilmalarga har ~1.5 soniyada status so'rovi yuboriladi.
+2. `/connect?port=COM6` chaqirilganda port ochiladi. `/connect` har safar oldingi ulanishni to'xtatib (`Stop()`), qurilmalar ro'yxatini tozalaydi va qidiruvni qaytadan boshlaydi, shuning uchun uni takror-takror chaqirmang; ulanish holatini `/status_all` dagi `portOpen` bilan tekshiring.
+3. Ulanishdan so'ng fon vazifasi `1..maxAddr` (standart `1..255`) manzillarni `0xD5` status buyrug'i bilan qidiradi. Javob bermaydigan barcha manzillarni kutib o'tish sababli to'liq scan taxminan 69 soniyagacha davom etishi mumkin. Qurilma 5 soniya so'rov olmasa aloqani yo'qotgani uchun, scan paytida topilgan qurilmalarga har ~1.5 soniyada status so'rovi yuboriladi.
 4. Topilgan qurilmalar `Devices` kolleksiyasiga qo'shiladi. Polling vazifasi ularning holatini navbatma-navbat yangilaydi.
 5. Qurilma javob bermasa `isConnected` false bo'ladi. Hajm/summa qiymatlari polling paytida holatga qarab yangilanadi.
 6. `/disconnect` portni yopadi, fon pollingni bekor qiladi va qurilmalar holatini tozalaydi.
 
-`/scan` qo'lda qayta qidiradi. Ulangan serial port bo'lmasa, server `503 Service Unavailable` qaytaradi.
+`/scan` qo'lda qayta qidiradi (`maxAddr` bilan oraliqni qisqartirish mumkin). Ulangan serial port bo'lmasa, server `503 Service Unavailable` qaytaradi.
 
 ## HTTP API
 
@@ -129,11 +137,11 @@ Barcha biznes endpointlari `GET` va `POST` metodlarini qabul qiladi; qiymatlar U
 | Yo'l | Parametrlar | Vazifa |
 | --- | --- | --- |
 | `/` | — | Swagger UI’ga yo'naltiradi |
-| `/connect` | `port` ixtiyoriy, standart `COM6` | Serial portni ochadi va avtomatik qidiruv/pollingni boshlaydi |
+| `/connect` | `port` ixtiyoriy (standart `FUEL_COM_PORT` yoki `COM6`), `maxAddr` ixtiyoriy `1..255` (standart `FUEL_MAX_ADDR` yoki `255`) | Serial portni ochadi va avtomatik qidiruv/pollingni boshlaydi |
 | `/disconnect` | — | Polling va serial portni to'xtatadi, device state’ni tozalaydi |
-| `/scan` | — | `1..255` manzillarni qayta qidiradi |
+| `/scan` | `maxAddr` ixtiyoriy `1..255` | `1..maxAddr` (standart `1..255`) manzillarni qayta qidiradi |
 | `/status` | `addr` | Bitta qurilma statusini yangilab qaytaradi |
-| `/status_all` | — | Topilgan barcha qurilmalar uchun keshlangan statusni qaytaradi |
+| `/status_all` | — | `success`, `portOpen` (port ochiqmi), `port` (port nomi yoki `null`), `scanning` (qidiruv ketyaptimi) va topilgan qurilmalar (`devices`) uchun keshlangan statusni qaytaradi |
 
 `addr` qurilma manzili bo'lib, `1` dan `255` gacha bo'lishi kerak. `/cmd/a1_select_nozzle` dagi `nozzle` ham shu manzil oralig'ida bo'lishi kerak.
 
@@ -249,6 +257,14 @@ Status javobi namunasi:
   "price": 5450
 }
 ```
+
+`/status_all` bunday obyektlarni `devices` massivida qaytaradi va ulanish holatini ham ko'rsatadi:
+
+```json
+{"success":true,"portOpen":true,"port":"COM6","scanning":false,"devices":[ ... ]}
+```
+
+`portOpen` — serial port ochiqmi; `scanning` — fon qidiruvi ketyaptimi (`true` bo'lganda `devices` hali to'liq emas); port yopiq bo'lsa `port` `null`, `devices` bo'sh.
 
 ## Protokol tafsilotlari
 
